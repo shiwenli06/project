@@ -1,0 +1,328 @@
+//一、线性存储结构-线性表
+#define _CRT_SECURE_NO_DEPRECATE
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include<time.h>
+
+#define MAX 27    //26个字母和 '
+//字典树的结构体定义
+typedef struct Word
+{
+    Word* next[MAX];    //数组下标0-25代表小写字母，26和'
+    int num;
+};
+//结构体定义：单词和对应频率
+typedef struct tlist
+{
+    char word[200];
+    int time;
+};
+struct tlist list[3000000];
+Word* root;
+char str[200] = "";
+char tempword[1000];
+int size = 0;
+//新建单词的函数，遍历单词判断当前字符是否是英文字母或者所有格符号，现有的指针向后移，如果指针到达链表结尾
+//说明是一个新单词，需要开辟新的结构体存入字母，如果没有，说明是一个之前出现过的重复单词，指针向后移，
+//相应的计数器++即可
+void createWord(char* str)
+{
+    int len = strlen(str), id=0;
+    Word* p = root, * q;
+    for (int i = 0; i < len; i++)//遍历单词判断当前字符是否为字母或'
+    {
+        if (str[i] >= 'a' && str[i] <= 'z')
+            id = str[i] - 'a';
+        if (str[i] >= 'A' && str[i] <= 'Z')
+            id = str[i] - 'A';
+        if (str[i] == '\'')
+            id = 26;
+        if (p->next[id] == NULL)//若已到达链表结尾，开辟新的结构体存入字母
+        {
+            q = (Word*)malloc(sizeof(Word));
+            for (int j = 0; j < MAX; j++)
+            {
+                q->num = 0; q->next[j] = NULL;
+            }
+            p->next[id] = q;
+            p = p->next[id];
+        }
+        else//若未到达链表结尾，指针指向下一个
+        {
+            p = p->next[id];
+        }
+    }
+    p->num++;
+}
+//读单词的函数 通过新建单词的函数之后，进入读单词的函数，如果是第一次出现的单词，将其写入到顺序表中，次数等于新建单词函数里面计数器的数目
+//如果不是，说明是重复单词，相应次数加加即可
+void readWord(Word* p, int len)
+{
+    int i;
+    for (i = 0; i < 27; i++)
+    {
+
+        if (p->next[i] != NULL)
+        {
+            if (i == 26)
+            {
+                str[len + 1] = '\0'; str[len] = '\''; len++;
+            }
+            else
+            {
+                str[len] = 'a' + i;
+                len++;
+            }
+            readWord((Word*)p->next[i], len);
+            len--;
+        }
+    }
+    if (p->num != 0)
+    {
+        str[len] = '\0';
+        strcpy(list[size].word, str);    //如果遇到单词结束标志，将str存入list[size].word
+        list[size].time = p->num;
+        size++;
+    }
+}
+
+//冒泡排序比较频率大小
+void Sort_Word(Word* p, int size) {
+    int i = 0, j = 0;
+    struct tlist temp;
+    for (i = 0; i < size - 1; i++)
+        for (j = i + 1; j < size; j++)
+            if (list[i].time > list[j].time || (list[i].time == list[j].time && strcmp(list[i].word, list[j].word) > 0))
+            {
+                temp.time = list[i].time;
+                list[i].time = list[j].time;
+                list[j].time = temp.time;
+                strcpy(temp.word, list[i].word);
+                strcpy(list[i].word, list[j].word);
+                strcpy(list[j].word, temp.word);
+            }
+}
+//主程序
+int main()
+{
+    int begintime, endtime;
+    begintime = clock();
+    root = (Word*)malloc(sizeof(Word));
+    int i, j;
+    for (i = 0; i < 27; i++) {
+        root->next[i] = NULL;
+    }
+    FILE* fp;
+    char x;
+    int len = 0;
+    char fileName[30];
+    memset(fileName, 0, sizeof(fileName));
+    printf("请输入查找的文件名（例：test.txt）: ");
+    scanf("%s", fileName);
+    //打开需要统计词汇的⽂件
+    fp = fopen(fileName, "rb");
+    if (fp == NULL) {
+        return 0;
+    }
+     //从txt文档中读入
+    do
+    {
+        x = fgetc(fp);
+        if ((x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z') || (x == '\'' && len != 0))
+        {
+            tempword[len] = x; len++;
+        }
+        else {
+            tempword[len] = '\0';
+            createWord(tempword);
+            len = 0;
+        }
+    } while (x != EOF);
+    tempword[len] = '\0';
+    createWord(tempword);
+    len = 0;
+    fclose(fp);
+    readWord(root, 0);
+    Sort_Word(root, size);
+    //将单词和对应频率输出到result.txt中
+    printf("* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * \n");
+    printf("* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * \n");
+    FILE* fpx;
+    memset(fileName, 0, sizeof(fileName));
+    printf("请输入写出文件名 : ");
+    scanf("%s", fileName);
+    fpx = fopen(fileName, "w");
+    int sum = 0;
+    for (i = 1; i < size; i++) {
+        sum += list[i].time;
+    }
+    fprintf(fpx, "本篇英文小说中单词总数为：%d\n", sum);
+    fprintf(fpx, "以下为单词和对应频率：\n");
+    for (i = 1; i < size; i++) {
+        fprintf(fpx, "出现的词汇：%-30s 频率:%-9d\t\n", list[i].word, list[i].time);
+    }
+    fclose(fpx);
+    endtime = clock();	//计时结束
+    printf("\n\nRunning Time：%dms\n", endtime - begintime);
+    return 0;
+}
+
+
+//二、非线性存储结构-树
+#define _CRT_SECURE_NO_DEPRECATE
+
+#include<stdio.h>
+#include<string.h>
+#include<malloc.h>
+#include <iostream>
+#include <ctype.h>
+#include<time.h>
+#define N 50
+typedef struct BiTNode
+{
+    char data[N];
+    int count;
+    struct BiTNode* lChild;
+    struct BiTNode* rChild;
+}BiTNode, * BiTree;
+int GetWord(int start, int end, char* pBuf, char* word);       //词汇
+void CreateSearchTree(char* item, BiTree& T);                //创建⼆叉树进⾏查找
+void InOrderAndPrint(BiTree T, FILE* pf);                    //进⾏中序遍历查找并写⼊⽂件
+int sum = 0;
+char temp1[N];
+char temp2[N];
+int main()
+{
+    
+    int begintime, endtime;
+    begintime = clock();
+        //获取输入⽂件名
+    char fileName[30];
+    memset(fileName, 0, sizeof(fileName));
+    printf("请输入查找的文件名（例：test.txt）: ");
+    scanf("%s", fileName);
+        //打开需要统计词汇的⽂件
+    FILE* pf;
+    pf = fopen(fileName, "rb");
+    if (pf == NULL)
+    {
+        printf("找不到文件！无法打开文件\n");
+        return false;
+    }
+        
+
+    printf("* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * \n");
+        //读取⽂件
+    fseek(pf, 0, SEEK_END);
+    int len = ftell(pf);
+    rewind(pf);
+    char* pBuf = new char[len + 1];
+    pBuf[len] = 0;
+    fread(pBuf, 1, len, pf);
+    fclose(pf);
+        //读取单词
+       
+    printf("*****************************************************************************\n\n");
+    int i = 0;
+    char word[N];
+    BiTree T = NULL;
+    while (i < len)
+    {
+        i = GetWord(i, len, pBuf, word);
+        if (strlen(word) == 0)
+        {
+            break;
+        }
+        CreateSearchTree(word, T);
+        CreateSearchTree(word, T);
+    }
+        //写⼊⽂件并显⽰在屏幕上
+    memset(fileName, 0, sizeof(fileName));
+    printf("请输入写出文件名 : ");
+    scanf("%s", fileName);
+    pf = fopen(fileName, "w");
+    if (pf == NULL)
+    {
+        printf("不能写入文件!");
+        return false;
+    }
+    fprintf(pf, "\t\t词频统计结果: \n");
+    fprintf(pf, "*********************************************************\n");
+    InOrderAndPrint(T, pf);
+    fprintf(pf, "*********************************************************\n");
+    fprintf(pf, "这篇文章单词总数: %d\n", sum);
+    fclose(pf);
+    endtime = clock();//计时结束
+    printf("\n\nRunning Time：%dms\n", endtime - begintime);
+    return 0;
+}
+//词汇
+int GetWord(int start, int end, char* pBuf, char* word)
+{
+    int i;
+    int j = 0;
+    memset(word, 0, sizeof(char));
+    for (i = start; i < end; i++)
+    {
+        if (isalpha(pBuf[i]))
+        {
+            word[j] = pBuf[i];
+            j++;
+        }
+        else
+        {
+            if (j == 0)
+            {
+                continue;
+            }
+            word[j] = '\0';
+            j = 0;
+            sum++;
+            break;
+        }
+    }
+    return i;
+}
+//创建⼆叉树进⾏查找
+void CreateSearchTree(char* item, BiTree& T)
+{
+    strcpy(temp1, item);
+    temp1[0] = tolower(item[0]);
+    if (T == NULL)
+    {
+        T = (BiTree)malloc(sizeof(BiTNode));
+        strcpy(T->data, item);
+        T->count = 1;
+        T->lChild = NULL;
+        T->rChild = NULL;
+    }
+    else
+    {
+        strcpy(temp2, T->data);
+        temp2[0] = tolower(T->data[0]);
+        if (strcmp(temp1, temp2) == -1)
+        {
+            CreateSearchTree(item, T->lChild);
+        }
+        else if (strcmp(temp1, temp2) == 1)
+        {
+            CreateSearchTree(item, T->rChild);
+        }
+        else
+        {
+            T->count++;
+        }
+    }
+}
+//进⾏中序遍历查找并写⼊⽂件
+void InOrderAndPrint(BiTree T, FILE* pf)
+{
+    if (T != NULL)
+    {
+        InOrderAndPrint(T->lChild, pf);
+        fprintf(pf, "出现的词汇：%-30s 频率:%-9d\t\n", T->data, T->count);        
+        InOrderAndPrint(T->rChild, pf);
+    }
+}
